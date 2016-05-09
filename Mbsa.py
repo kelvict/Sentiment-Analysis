@@ -7,6 +7,7 @@
 import os
 
 from text_tools import pytc
+from performance import performance
 
 
 class Mbsa(object):
@@ -187,8 +188,8 @@ if __name__ == '__main__':
             character_fs_method, character_fs_num, character_df, term_weight, rule_feature)
 
 
-    '''train'''
-    train_dir = 'nlpcc_emotion' + os.sep + 'train'
+    ''' train & test '''
+    train_dir = 'data' + os.sep + 'nlpcc_emotion' + os.sep + 'train'
     train_samp_dir = train_dir
     term_set_dir = train_dir
     model_file_dir = train_dir
@@ -197,12 +198,8 @@ if __name__ == '__main__':
     pos_fname_list = ['neg_pos','pos_pos']
     class_fname_list = ['neg', 'pos']
 
-    test.gen_train_samps(train_dir, train_samp_dir, term_set_dir,
-        token_fname_list, pos_fname_list, class_fname_list)
-    pytc.liblinear_learn(train_samp_dir, model_file_dir, learn_opt='-s 7 -c 1')
 
-    ''' test '''
-    test_dir = 'nlpcc_emotion' + os.sep + 'test'
+    test_dir = 'data' + os.sep + 'nlpcc_emotion' + os.sep + 'test'
     test_samp_dir = test_dir
     result_file_dir = test_dir
 
@@ -210,7 +207,27 @@ if __name__ == '__main__':
     pos_fname_list = ['test_pos']
     class_fname_list = ['test']
 
+    test.gen_train_samps(train_dir, train_samp_dir, term_set_dir,
+        token_fname_list, pos_fname_list, class_fname_list)
+    pytc.liblinear_learn(train_samp_dir, model_file_dir, learn_opt='-s 7 -c 1')
+
     test.gen_test_samps(test_dir, term_set_dir, test_samp_dir, result_file_dir, token_fname_list, pos_fname_list, class_fname_list)
     pytc.liblinear_predict(test_samp_dir, model_file_dir, result_file_dir, classify_opt='-b 1')
+
+
+    '''performance'''
+    label = [x.strip() for x in open(test_dir+os.sep+'test_label').readlines()]
+    result = [x.strip().split()[0] for x in open(result_file_dir+os.sep+'lg.result').readlines()[1:]]
+
+    class_dict = {'1':'neg','2':'pos'}
+    result_dict = performance.demo_performance(result,label,class_dict)
+
+    print len(label)
+    print str(label.count('1'))+'\t'+str(label.count('2'))
+
+    ss = ''
+    for key in ['p_neg','r_neg','f1_neg','p_pos','r_pos','f1_pos','macro_f1','acc']:
+        ss += str(round(result_dict[key]*100,4))+'%\t'
+    print ss.rstrip('\t')
 
 

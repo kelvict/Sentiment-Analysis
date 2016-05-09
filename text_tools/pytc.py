@@ -8,7 +8,7 @@ import math
 
 ########### Global Parameters ###########
 
-TOOL_PATH = '.'
+TOOL_PATH = 'ML-TOOLS'
 LIBLINEAR_LEARN_EXE = TOOL_PATH + os.sep+ 'liblinear-1.96' + os.sep + 'windows' + os.sep + 'train.exe'
 LIBLINEAR_CLASSIFY_EXE = TOOL_PATH + os.sep+ 'liblinear-1.96' + os.sep + 'windows' + os.sep + 'predict.exe'
 
