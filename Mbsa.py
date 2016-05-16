@@ -6,7 +6,7 @@
 """
 import os
 
-from text_tools import pytc
+import pytc
 from performance import performance
 
 
@@ -67,21 +67,25 @@ class Mbsa(object):
 
         # if it's in training producure
         if train_opt == 1:
-            print "len(token_set)=",len(token_set)
-            token_set = pytc.feature_selection_all(doc_token_list, doc_class_list, class_fname_list,
-                token_set, self.token_fs_opt, self.token_df, self.token_fs_method, self.token_fs_num)
-            print "after feature selection, len(token_set)=", len(token_set)
 
-            print "len(pos_set)=",len(pos_set)
-            pos_set = pytc.feature_selection_all(doc_pos_list, doc_class_list, class_fname_list,
-                pos_set, self.pos_fs_opt, self.pos_df, self.pos_fs_method, self.pos_fs_num)
-            print "after feature selection, len(pos_set)=", len(pos_set)
+            if len(doc_token_list) > 0:
+                print "len(token_set)=",len(token_set)
+                token_set = pytc.feature_selection_all(doc_token_list, doc_class_list, class_fname_list,
+                    token_set, self.token_fs_opt, self.token_df, self.token_fs_method, self.token_fs_num)
+                print "after feature selection, len(token_set) =", len(token_set)
 
-            print "len(character_set)=", len(character_set)
-            character_set = pytc.feature_selection_all(doc_character_list, doc_class_list,
-                class_fname_list, character_set, self.character_fs_opt, self.character_df,
-                self.character_fs_method, self.character_fs_num)
-            print "len(character_set)=", len(character_set)
+            if len(doc_pos_list) > 0:
+                print "len(pos_set)=",len(pos_set)
+                pos_set = pytc.feature_selection_all(doc_pos_list, doc_class_list, class_fname_list,
+                    pos_set, self.pos_fs_opt, self.pos_df, self.pos_fs_method, self.pos_fs_num)
+                print "after feature selection, len(pos_set) =", len(pos_set)
+
+            if len(doc_character_list) > 0:
+                print "len(character_set)=", len(character_set)
+                character_set = pytc.feature_selection_all(doc_character_list, doc_class_list,
+                    class_fname_list, character_set, self.character_fs_opt, self.character_df,
+                    self.character_fs_method, self.character_fs_num)
+                print "len(character_set) =", len(character_set)
 
         # get joint term set
         term_set = token_set + pos_set
@@ -96,7 +100,7 @@ class Mbsa(object):
         fname_term_set_train = term_set_dir +os.sep+'term.set'
 
         doc_class_list_train, doc_str_token_train, doc_terms_list_train, term_set_train = \
-        self.gen_doc_terms_list(train_dir, token_fname_list, pos_fname_list, class_fname_list, train_opt = 0)
+        self.gen_doc_terms_list(train_dir, token_fname_list, pos_fname_list, class_fname_list, train_opt = 1)
 
         pytc.save_term_set(term_set_train, fname_term_set_train)
 
@@ -115,7 +119,7 @@ class Mbsa(object):
 
         print "building samps......"
         samp_list_train, class_list_train = pytc.build_samps(term_dict, class_dict, doc_class_list_train,
-        doc_terms_list_train, self.term_weight, self.rule_feature)
+        doc_terms_list_train, doc_uni_token_train, self.term_weight, self.rule_feature)
 
         print "saving samps......"
         pytc.save_samps(samp_list_train, class_list_train, fname_samps_train)
@@ -155,7 +159,7 @@ class Mbsa(object):
 
         print "building samps......"
         samp_list_test, class_list_test = pytc.build_samps(term_dict, class_dict, doc_class_list_test,
-        doc_terms_list_test, self.term_weight, self.rule_feature)
+        doc_terms_list_test, doc_uni_token_test, self.term_weight, self.rule_feature)
 
         print "saving samps......"
         pytc.save_samps(samp_list_test, class_list_test, fname_samps_test)
@@ -165,7 +169,7 @@ if __name__ == '__main__':
     token_df = 2
     token_fs_opt = 1
     token_fs_method = 'WLLR'
-    token_fs_num = 100000
+    token_fs_num = 2000
 
     pos_gram = 'none'
     pos_df = 2
@@ -199,6 +203,10 @@ if __name__ == '__main__':
     class_fname_list = ['neg', 'pos']
 
 
+    test.gen_train_samps(train_dir, train_samp_dir, term_set_dir,
+        token_fname_list, pos_fname_list, class_fname_list)
+    pytc.liblinear_learn(train_samp_dir, model_file_dir, learn_opt='-s 7 -c 1')
+
     test_dir = 'data' + os.sep + 'nlpcc_emotion' + os.sep + 'test'
     test_samp_dir = test_dir
     result_file_dir = test_dir
@@ -206,10 +214,6 @@ if __name__ == '__main__':
     token_fname_list = ['test_fenci']
     pos_fname_list = ['test_pos']
     class_fname_list = ['test']
-
-    test.gen_train_samps(train_dir, train_samp_dir, term_set_dir,
-        token_fname_list, pos_fname_list, class_fname_list)
-    pytc.liblinear_learn(train_samp_dir, model_file_dir, learn_opt='-s 7 -c 1')
 
     test.gen_test_samps(test_dir, term_set_dir, test_samp_dir, result_file_dir, token_fname_list, pos_fname_list, class_fname_list)
     pytc.liblinear_predict(test_samp_dir, model_file_dir, result_file_dir, classify_opt='-b 1')
