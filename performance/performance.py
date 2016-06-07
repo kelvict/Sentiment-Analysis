@@ -108,10 +108,12 @@ def demo_cv_performance(output_dir,fold_num,class_dict):
     lst = []
     for fold_id in range(1,fold_num+1):
         fold_data = {}
-        label_fname = output_dir+os.sep+'fold'+str(fold_id)+os.sep+'ml'+os.sep+'test.samp'
-        result_fname = output_dir+os.sep+'fold'+str(fold_id)+os.sep+'ml'+os.sep+'lg.result'
-        label = [x.split()[0] for x in open(label_fname).readlines()]
-        result = [x.split()[0] for x in open(result_fname).readlines()]
+        # label_fname = output_dir+os.sep+'fold'+str(fold_id)+os.sep+'test'+os.sep+'test.samp'
+        label_fname = output_dir+os.sep+'fold'+str(fold_id)+os.sep+'test'+os.sep+'test_label'
+        result_fname = output_dir+os.sep+'fold'+str(fold_id)+os.sep+'test'+os.sep+'lg.result'
+        # label = [x.split()[0] for x in open(label_fname).readlines()]
+        label = [x.strip() for x in open(label_fname).readlines()]
+        result = [x.split()[0] for x in open(result_fname).readlines()[1:]]
         fold_data['acc'] = calc_acc(result,label)
         fold_data['recall'] = calc_recall(result,label,class_dict)
         fold_data['precision'] = calc_precision(result,label,class_dict)

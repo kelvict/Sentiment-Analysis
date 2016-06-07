@@ -16,6 +16,8 @@ class Lbsa(object):
     dict_path = 'DICT'
     degree_dict = tools.load_lexicon(dict_path + os.sep + 'degree', float)
     senti_dict = tools.load_lexicon(dict_path + os.sep + 'senti', float)
+    senti_distant_dict = tools.load_lexicon(dict_path+os.sep+'senti_distant_new.txt', float)
+
     face_dict = tools.load_lexicon(dict_path + os.sep + 'all_face', float)
 
     pre_adv_list = [x.strip() for x in open(dict_path + os.sep + 'pre_adv').readlines()]
@@ -37,6 +39,16 @@ class Lbsa(object):
     def __init__(self,win_size,phrase_size):
         self.win_size = win_size
         self.phrase_size = phrase_size
+
+    def distant_dict_score(self, doc):
+        if len(doc) == 0:
+            return 0, 0
+        score = 0
+        for term in doc:
+            if term in self.senti_distant_dict:
+                score += self.senti_distant_dict[term]
+        avg_score = score/len(doc)
+        return score, avg_score
 
 
     def character_ngram_method(self, doc_tokens, senti_dict, deny_win_size):

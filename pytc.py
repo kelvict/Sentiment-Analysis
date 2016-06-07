@@ -43,6 +43,117 @@ def read_unannotated_data(fname_list):
     return doc_str_list
 
 
+def gen_nfolds_f2(input_dir, output_dir, nfolds_num, fname_list, class_dict, random_tag=False):
+    '''
+    Generate nfolds, with each fold containing a training fold and test fold
+    '''
+    if not os.path.exists(output_dir):
+        os.mkdir(output_dir)
+
+    doc_str_test_dict, label_test_dict = dict(), dict()
+    for fname in fname_list:
+        doc_str_list = open(input_dir + os.sep + fname, 'r').readlines()
+        # if random_tag == True:
+        #     random.shuffle(doc_str_list)
+        doc_num = len(doc_str_list)
+        pos_range = int(doc_num / nfolds_num)
+        begin_pos = 0
+        for fold_id in range(nfolds_num):
+            fold_dir = output_dir + os.sep + 'fold' + str(fold_id+1)
+            if not os.path.exists(fold_dir):
+                os.mkdir(fold_dir)
+
+            if fold_id != nfolds_num - 1:
+                end_pos = begin_pos + pos_range
+            else:
+                end_pos = len(doc_str_list)
+
+#            print fname,"fold"+str(fold_id+1),"begin_pos="+str(begin_pos),\
+            "end_pos="+str(end_pos)
+
+            doc_str_list_train = doc_str_list[:begin_pos] + doc_str_list[end_pos:]
+
+            if doc_str_test_dict.has_key(fold_id):
+                doc_str_test_dict[fold_id].extend(doc_str_list[begin_pos:end_pos])
+            else:
+                doc_str_test_dict[fold_id] = doc_str_list[begin_pos:end_pos]
+
+            if label_test_dict.has_key(fold_id):
+                label_test_dict[fold_id].extend([class_dict[fname]] * (end_pos - begin_pos))
+            else:
+                label_test_dict[fold_id] = [class_dict[fname]] * (end_pos - begin_pos)
+
+            train_dir = fold_dir + os.sep + 'train'
+            if not os.path.exists(train_dir):
+                os.mkdir(train_dir)
+            fout = open(train_dir + os.sep + fname, 'w')
+            fout.writelines([x for x in doc_str_list_train])
+            fout.close()
+
+
+            begin_pos = end_pos
+
+    for fold_id in range(nfolds_num):
+        fold_dir = output_dir + os.sep + 'fold' + str(fold_id+1)
+        test_dir = fold_dir + os.sep + 'test'
+        if not os.path.exists(test_dir):
+            os.mkdir(test_dir)
+        with open(test_dir + os.sep + 'test_fenci', 'w') as fs, \
+        open(test_dir + os.sep + 'test_label', 'w') as ls:
+            fs.writelines(doc_str_test_dict[fold_id])
+            ls.writelines([x + '\n' for x in label_test_dict[fold_id]])
+
+# def gen_nfolds_f2(input_dir, output_dir, nfolds_num, fname_list, class_dict, random_tag=False):
+#     '''
+#     Generate nfolds, with each fold containing a training fold and test fold
+#     '''
+#     if not os.path.exists(output_dir):
+#         os.mkdir(output_dir)
+
+#     for fold_id in range(nfolds_num):
+#         fold_dir = output_dir + os.sep + 'fold' + str(fold_id+1)
+#         if not os.path.exists(fold_dir):
+#             os.mkdir(fold_dir)
+
+#         train_dir = fold_dir + os.sep + 'train'
+#         if not os.path.exists(train_dir):
+#             os.mkdir(train_dir)
+
+#         test_dir = fold_dir + os.sep + 'test'
+#         if not os.path.exists(test_dir):
+#             os.mkdir(test_dir)
+
+#         doc_str_list_test, label_list_test = [], []
+#         begin_pos = 0
+
+#         for fname in fname_list:
+#             doc_str_list = open(input_dir + os.sep + fname, 'r').readlines()
+#             # if random_tag == True:
+#             #     random.shuffle(doc_str_list)
+#             doc_num = len(doc_str_list)
+#             pos_range = int(doc_num / nfolds_num)
+
+#             if fold_id != nfolds_num - 1:
+#                 end_pos = begin_pos + pos_range
+#             else:
+#                 end_pos = len(doc_str_list)
+
+#             doc_str_list_train = doc_str_list[:begin_pos] + doc_str_list[end_pos:]
+
+#             doc_str_list_test.extend(doc_str_list[begin_pos:end_pos])
+#             label_list_test.extend([class_dict[fname]] * (end_pos - begin_pos))
+
+#             fout = open(train_dir + os.sep + fname, 'w')
+#             fout.writelines([x for x in doc_str_list_train])
+#             fout.close()
+
+#             begin_pos = end_pos
+
+#         with open(test_dir + os.sep + 'test_fenci', 'w') as fs, \
+#         open(test_dir + os.sep + 'test_label', 'w') as ls:
+#             fs.writelines(doc_str_list_test)
+#             ls.writelines([x + '\n' for x in label_list_test])
+
 ########## Feature Extraction Fuctions ##########
 
 def get_doc_unis_list(doc_str_list):
@@ -378,14 +489,6 @@ def feature_selection_all(doc_terms_list, doc_class_list, class_fname_list,
     import copy
     term_set_train = copy.deepcopy(term_set)
 
-    #是否进行基于文档频率的特征选择
-    if fs_df_num >= 2:
-        print 'Filtering features DF>=',fs_df_num,'...'
-        term_df = stat_df_term(term_set_train, doc_terms_list)
-        term_set_df = feature_selection_df(term_df, fs_df_num)
-        term_set_train = term_set_df
-    print 'Feature Num:', len(term_set_train)
-
     #是否进行监督方式的特征选择
     if fs_opt == 1:
         # 如果fs_num == -1, 则默认为选择一半数量的特征词
@@ -399,8 +502,17 @@ def feature_selection_all(doc_terms_list, doc_class_list, class_fname_list,
         term_set_fs, term_score_dict = supervised_feature_selection(df_class, \
             df_term_class, fs_method, fs_num, fs_class=-1)
         term_set_train = term_set_fs
+        print 'after supervised fs, Feature Num:', len(term_set_train)
 
-    print 'Feature Num:', len(term_set_train)
+    #是否进行基于文档频率的特征选择
+    if fs_df_num >= 2:
+        print 'Filtering features DF>=',fs_df_num,'...'
+        term_df = stat_df_term(term_set_train, doc_terms_list)
+        term_set_df = feature_selection_df(term_df, fs_df_num)
+        term_set_train = term_set_df
+        print 'after df fs, Feature Num:', len(term_set_train)
+
+    print 'final Feature Num:', len(term_set_train)
     return term_set_train
 
 ########## Building Sample Files ##########
@@ -463,8 +575,15 @@ def build_samps(term_dict, class_dict, doc_class_list, doc_terms_list, doc_uni_t
 
             doc_tokens = doc_uni_token[k]
             fixed_id = len(term_dict)+1        #下一个特征开始的ID号
-            rule_result = test.cal_document(doc_tokens,'none')
 
+            distant_score,distant_avg_score = test.distant_dict_score(doc_tokens)
+            if distant_score != 0:
+                samp_dict[fixed_id] = distant_score
+            fixed_id += 1
+
+
+
+            rule_result = test.cal_document(doc_tokens,'none')
             #########               添加规则情感特征                 ###########
             # 先添加情感词以外的特征，包括：
             # 否定词数量，程度副词数量，感叹词数量，第一人称词数量，第二人称词数量

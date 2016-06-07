@@ -40,7 +40,7 @@ class Mbsa(object):
         doc_class_list = []
 
         # token ngram
-        doc_token_list = []
+        doc_token_list, token_set = [], []
         if self.token_gram != 'none':
             doc_str_token, doc_class_list = pytc.read_annotated_data([input_dir + \
                 os.sep + x for x in token_fname_list], class_fname_list)
@@ -164,12 +164,52 @@ class Mbsa(object):
         print "saving samps......"
         pytc.save_samps(samp_list_test, class_list_test, fname_samps_test)
 
+    def N_folds_samps(self,input_dir,fold_num, token_fname_list, pos_fname_list,class_fname_list):
+        '''将语料按照交叉验证的折数进行分割'''
+        output_dir = input_dir+'_nfolds'
+        class_dict = dict(zip(token_fname_list, [str(i) for i in range(1, len(token_fname_list) + 1)]))
+        #将原文件、分词文件、词性文件按照n折交叉验证分割
+        pytc.gen_nfolds_f2(input_dir, output_dir, fold_num, token_fname_list, class_dict)
+        if self.pos_gram != 'none':
+            pytc.gen_nfolds_f2(input_dir, output_dir, fold_num, pos_fname_list, class_dict)
+
+        for fold_id in range(1, fold_num+1):
+            print '\n\n##### Cross Validation: fold' + str(fold_id) + ' #####'
+            fold_dir = output_dir + os.sep + 'fold' + str(fold_id)
+            fold_train_dir = fold_dir + os.sep + 'train'
+            fold_test_dir = fold_dir + os.sep + 'test'
+            train_samp_dir, term_set_dir = fold_train_dir, fold_train_dir
+            test_samp_dir, result_file_dir = fold_test_dir, fold_test_dir
+
+            test_token_fname = ['test_fenci']
+            test_pos_fname = ['test_pos']
+            test_class_fname = ['test']
+            self.gen_train_samps(fold_train_dir,train_samp_dir, term_set_dir, token_fname_list, pos_fname_list, class_fname_list)
+            self.gen_test_samps(fold_test_dir,term_set_dir, test_samp_dir, result_file_dir, test_token_fname, test_pos_fname, test_class_fname)
+
+
+    def N_folds_validation(self,input_dir,fold_num):
+        '''对每折验证中的语料进行训练与测试，并求融合模型的平均正确率'''
+        output_dir = input_dir+'_nfolds'
+        # mix_acc_list = []
+        for fold_id in range(1,fold_num+1):
+            fold_dir = output_dir + os.sep + 'fold' + str(fold_id)
+            train_samp_dir, model_file_dir = fold_dir + os.sep + 'train', fold_dir + os.sep + 'train'
+            test_samp_dir, result_file_dir = fold_dir + os.sep + 'test', fold_dir + os.sep + 'test'
+
+            pytc.liblinear_learn(train_samp_dir, model_file_dir, learn_opt='-s 7 -c 1')
+            pytc.liblinear_predict(test_samp_dir, model_file_dir, result_file_dir, classify_opt='-b 1')
+
+            # mix_acc = self.mix_model(ml_file_dir,mix_classifier_list)
+            # mix_acc_list.append(mix_acc)
+        # print "\nThe avg of mix_acc is",sum(mix_acc_list)*1.0/len(mix_acc_list)
+
 if __name__ == '__main__':
     token_gram='uni'
     token_df = 2
     token_fs_opt = 1
     token_fs_method = 'WLLR'
-    token_fs_num = 2000
+    token_fs_num = 10000
 
     pos_gram = 'none'
     pos_df = 2
@@ -194,6 +234,7 @@ if __name__ == '__main__':
 
     ''' train & test '''
     train_dir = 'data' + os.sep + 'nlpcc_emotion' + os.sep + 'train'
+    # train_dir = 'data' + os.sep + 'coae2014' + os.sep + 'train_nfolds' + os.sep +'fold2' + os.sep + 'train'
     train_samp_dir = train_dir
     term_set_dir = train_dir
     model_file_dir = train_dir
@@ -202,12 +243,12 @@ if __name__ == '__main__':
     pos_fname_list = ['neg_pos','pos_pos']
     class_fname_list = ['neg', 'pos']
 
-
     test.gen_train_samps(train_dir, train_samp_dir, term_set_dir,
         token_fname_list, pos_fname_list, class_fname_list)
     pytc.liblinear_learn(train_samp_dir, model_file_dir, learn_opt='-s 7 -c 1')
 
     test_dir = 'data' + os.sep + 'nlpcc_emotion' + os.sep + 'test'
+    # test_dir = 'data' + os.sep + 'coae2014' + os.sep + 'train_nfolds' + os.sep +'fold2' + os.sep + 'test'
     test_samp_dir = test_dir
     result_file_dir = test_dir
 
