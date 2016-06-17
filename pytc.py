@@ -5,6 +5,7 @@ import os
 import re
 import random
 import math
+import subprocess
 
 from Lbsa import Lbsa
 
@@ -13,6 +14,10 @@ from Lbsa import Lbsa
 TOOL_PATH = 'ML-TOOLS'
 LIBLINEAR_LEARN_EXE = TOOL_PATH + os.sep+ 'liblinear-1.96' + os.sep + 'windows' + os.sep + 'train.exe'
 LIBLINEAR_CLASSIFY_EXE = TOOL_PATH + os.sep+ 'liblinear-1.96' + os.sep + 'windows' + os.sep + 'predict.exe'
+NB_LEARN_EXE = TOOL_PATH + os.sep+ 'openpr-nb_v1.16' + os.sep + 'windows' + os.sep + 'nb_learn.exe'
+NB_CLASSIFY_EXE = TOOL_PATH + os.sep+ 'openpr-nb_v1.16' + os.sep + 'windows' + os.sep + 'nb_classify.exe'
+LIBSVM_LEARN_EXE = TOOL_PATH + os.sep+ 'libsvm-3.2' + os.sep + 'windows' + os.sep + 'svm-train.exe'
+LIBSVM_CLASSIFY_EXE = TOOL_PATH + os.sep+ 'libsvm-3.2' + os.sep + 'windows' + os.sep + 'svm-predict.exe'
 
 LOG_LIM = 1E-300
 
@@ -43,16 +48,18 @@ def read_unannotated_data(fname_list):
     return doc_str_list
 
 
-def gen_nfolds_f2(input_dir, output_dir, nfolds_num, fname_list, class_dict, random_tag=False):
+def gen_nfolds_f2(input_dir, output_dir, nfolds_num, fname_list, random_tag=False):
     '''
     Generate nfolds, with each fold containing a training fold and test fold
     '''
+    class_dict = dict(zip(fname_list, [str(i) for i in range(1, len(fname_list) + 1)]))
     if not os.path.exists(output_dir):
         os.mkdir(output_dir)
 
     doc_str_test_dict, label_test_dict = dict(), dict()
     for fname in fname_list:
         doc_str_list = open(input_dir + os.sep + fname, 'r').readlines()
+        # random.shuffle(doc_str_list)
         # if random_tag == True:
         #     random.shuffle(doc_str_list)
         doc_num = len(doc_str_list)
@@ -98,61 +105,12 @@ def gen_nfolds_f2(input_dir, output_dir, nfolds_num, fname_list, class_dict, ran
         test_dir = fold_dir + os.sep + 'test'
         if not os.path.exists(test_dir):
             os.mkdir(test_dir)
-        with open(test_dir + os.sep + 'test_fenci', 'w') as fs, \
+        # test_fname = fname_list[0].replace('neg', 'test')
+        test_fname = fname_list[0].replace('against', 'test')
+        with open(test_dir + os.sep + test_fname, 'w') as fs, \
         open(test_dir + os.sep + 'test_label', 'w') as ls:
             fs.writelines(doc_str_test_dict[fold_id])
             ls.writelines([x + '\n' for x in label_test_dict[fold_id]])
-
-# def gen_nfolds_f2(input_dir, output_dir, nfolds_num, fname_list, class_dict, random_tag=False):
-#     '''
-#     Generate nfolds, with each fold containing a training fold and test fold
-#     '''
-#     if not os.path.exists(output_dir):
-#         os.mkdir(output_dir)
-
-#     for fold_id in range(nfolds_num):
-#         fold_dir = output_dir + os.sep + 'fold' + str(fold_id+1)
-#         if not os.path.exists(fold_dir):
-#             os.mkdir(fold_dir)
-
-#         train_dir = fold_dir + os.sep + 'train'
-#         if not os.path.exists(train_dir):
-#             os.mkdir(train_dir)
-
-#         test_dir = fold_dir + os.sep + 'test'
-#         if not os.path.exists(test_dir):
-#             os.mkdir(test_dir)
-
-#         doc_str_list_test, label_list_test = [], []
-#         begin_pos = 0
-
-#         for fname in fname_list:
-#             doc_str_list = open(input_dir + os.sep + fname, 'r').readlines()
-#             # if random_tag == True:
-#             #     random.shuffle(doc_str_list)
-#             doc_num = len(doc_str_list)
-#             pos_range = int(doc_num / nfolds_num)
-
-#             if fold_id != nfolds_num - 1:
-#                 end_pos = begin_pos + pos_range
-#             else:
-#                 end_pos = len(doc_str_list)
-
-#             doc_str_list_train = doc_str_list[:begin_pos] + doc_str_list[end_pos:]
-
-#             doc_str_list_test.extend(doc_str_list[begin_pos:end_pos])
-#             label_list_test.extend([class_dict[fname]] * (end_pos - begin_pos))
-
-#             fout = open(train_dir + os.sep + fname, 'w')
-#             fout.writelines([x for x in doc_str_list_train])
-#             fout.close()
-
-#             begin_pos = end_pos
-
-#         with open(test_dir + os.sep + 'test_fenci', 'w') as fs, \
-#         open(test_dir + os.sep + 'test_label', 'w') as ls:
-#             fs.writelines(doc_str_list_test)
-#             ls.writelines([x + '\n' for x in label_list_test])
 
 ########## Feature Extraction Fuctions ##########
 
@@ -206,44 +164,131 @@ def get_doc_quat_list(doc_str_list):
         doc_quat_list.append([x+'<w-w>'+y for x,y in zip(pre,after)])
     return doc_quat_list
 
+# def get_joint_sets(lst1, lst2):
+#     '''
+#     map corresponding element for two 2-dimention list
+#     '''
+#     if len(lst1) != len(lst2):
+#         print "different lengths, return the first list object"
+#         return lst1
+#     return map(lambda x, y : x + y, lst1, lst2)
+
+# def gen_N_gram(doc_str_list, ngram='uni'):
+#     '''
+#     generating NGRAM for each instance according to given N
+#     '''
+#     doc_ngram_list = []
+#     if ngram=='uni':
+#         doc_ngram_list = get_doc_unis_list(doc_str_list)
+#     elif ngram=='bis':
+#         doc_uni_list = get_doc_unis_list(doc_str_list)
+#         doc_bis_list = get_doc_bis_list(doc_str_list)
+#         doc_ngram_list = get_joint_sets(doc_uni_list, doc_bis_list)
+#     elif ngram=='tri':
+#         doc_uni_list = get_doc_unis_list(doc_str_list)
+#         doc_bis_list = get_doc_bis_list(doc_str_list)
+#         doc_trip_list = get_doc_triple_list(doc_str_list)
+#         tmp = get_joint_sets(doc_uni_list, doc_bis_list)
+#         doc_ngram_list = get_joint_sets(tmp,doc_trip_list)
+#     elif ngram=='quat':
+#         doc_uni_list = get_doc_unis_list(doc_str_list)
+#         doc_bis_list = get_doc_bis_list(doc_str_list)
+#         doc_trip_list = get_doc_triple_list(doc_str_list)
+#         doc_quat_list = get_doc_quat_list(doc_str_list)
+#         tmp1 = get_joint_sets(doc_uni_list, doc_bis_list)
+#         tmp2 = get_joint_sets(tmp1, doc_trip_list)
+#         doc_ngram_list = get_joint_sets(tmp2,doc_quat_list)
+#     else:
+#         for i in range(len(doc_str_list)):
+#             doc_ngram_list.append([])
+#     return doc_ngram_list
+
 def get_joint_sets(lst1, lst2):
     '''
     map corresponding element for two 2-dimention list
     '''
-    if len(lst1) != len(lst2):
-        print "different lengths, return the first list object"
-        return lst1
-    return map(lambda x, y : x + y, lst1, lst2)
+    if len(lst1) == 0 or len(lst1) != len(lst2):
+        print "different lengths, do nothing"
+        return
+    for sub_lst1, sub_lst2 in zip(lst1, lst2):
+        sub_lst1.extend(sub_lst2)
 
 def gen_N_gram(doc_str_list, ngram='uni'):
     '''
     generating NGRAM for each instance according to given N
     '''
-    doc_ngram_list = []
     if ngram=='uni':
-        doc_ngram_list = get_doc_unis_list(doc_str_list)
+        doc_uni_list = get_doc_unis_list(doc_str_list)
+        return doc_uni_list
     elif ngram=='bis':
-        doc_uni_list = get_doc_unis_list(doc_str_list)
         doc_bis_list = get_doc_bis_list(doc_str_list)
-        doc_ngram_list = get_joint_sets(doc_uni_list, doc_bis_list)
+        return doc_bis_list
     elif ngram=='tri':
-        doc_uni_list = get_doc_unis_list(doc_str_list)
-        doc_bis_list = get_doc_bis_list(doc_str_list)
         doc_trip_list = get_doc_triple_list(doc_str_list)
-        tmp = get_joint_sets(doc_uni_list, doc_bis_list)
-        doc_ngram_list = get_joint_sets(tmp,doc_trip_list)
+        return doc_trip_list
     elif ngram=='quat':
-        doc_uni_list = get_doc_unis_list(doc_str_list)
-        doc_bis_list = get_doc_bis_list(doc_str_list)
-        doc_trip_list = get_doc_triple_list(doc_str_list)
         doc_quat_list = get_doc_quat_list(doc_str_list)
-        tmp1 = get_joint_sets(doc_uni_list, doc_bis_list)
-        tmp2 = get_joint_sets(tmp1, doc_trip_list)
-        doc_ngram_list = get_joint_sets(tmp2,doc_quat_list)
+        return doc_quat_list
     else:
+        doc_ngram_list = []
         for i in range(len(doc_str_list)):
             doc_ngram_list.append([])
-    return doc_ngram_list
+        return doc_ngram_list
+
+def gen_character_ngram_list(doc_str_list, ngram):
+    doc_terms_list = []
+    ngram_dict = {
+        'uni' : 1,
+        'bis': 2,
+        'tri': 3,
+        'quat': 4,
+        'five': 5,
+        'six': 6,
+    }
+    if not ngram_dict.has_key(ngram):
+        print "ngram key error"
+        return doc_terms_list
+
+    l =ngram_dict[ngram]
+
+    if l <= 1:
+        print "character ngram too short"
+        return doc_terms_list
+
+    for doc in doc_str_list:
+        doc_str = doc.replace(' ','')
+        doc_str = re.sub('\[.*?\]', '', doc_str)
+        doc_str = doc_str.decode('utf8', 'ignore')
+        terms_lst = []
+        for i in range(len(doc_str)):
+            term = doc_str[i: i + l].encode('utf8', 'ignore')
+            if re.search('[\(\)\.;,/，。；《》【】]', term) is not None:
+                continue
+            term += '_c#'
+            terms_lst.append(term)
+        terms_lst = list(set(terms_lst))
+        doc_terms_list.append(terms_lst)
+    return doc_terms_list
+
+# def gen_character_ngram_list(doc_str_list, ngram):
+#     doc_terms_list = []
+#     if ngram <= 1:
+#         return doc_terms_list
+
+#     for doc in doc_str_list:
+#         doc_str = doc.replace(' ','')
+#         doc_str = re.sub('\[.*?\]', '', doc_str)
+#         doc_str = doc_str.decode('utf8', 'ignore')
+#         terms_lst = []
+#         for i in range(len(doc_str)):
+#             for j in range(2,5):
+#                 term = doc_str[i:i+j].encode('utf8', 'ignore')
+#                 if re.search('[\(\)\.;,/，。；《》【】]', term) is not None:
+#                     continue
+#                 terms_lst.append(term)
+#         terms_lst = list(set(terms_lst))
+#         doc_terms_list.append(terms_lst)
+#     return doc_terms_list
 
 def get_term_set(doc_terms_list):
     '''generate unique term set fron N segmented instances, N = len(doc_terms_list) '''
@@ -502,7 +547,7 @@ def feature_selection_all(doc_terms_list, doc_class_list, class_fname_list,
         term_set_fs, term_score_dict = supervised_feature_selection(df_class, \
             df_term_class, fs_method, fs_num, fs_class=-1)
         term_set_train = term_set_fs
-        print 'after supervised fs, Feature Num:', len(term_set_train)
+        # print 'after supervised fs, Feature Num:', len(term_set_train)
 
     #是否进行基于文档频率的特征选择
     if fs_df_num >= 2:
@@ -510,7 +555,7 @@ def feature_selection_all(doc_terms_list, doc_class_list, class_fname_list,
         term_df = stat_df_term(term_set_train, doc_terms_list)
         term_set_df = feature_selection_df(term_df, fs_df_num)
         term_set_train = term_set_df
-        print 'after df fs, Feature Num:', len(term_set_train)
+        # print 'after df fs, Feature Num:', len(term_set_train)
 
     print 'final Feature Num:', len(term_set_train)
     return term_set_train
@@ -541,7 +586,7 @@ def trans_feature_weight(weight1,weight2,fixed_id,samp_dict):
 # def build_samps(term_dict, class_dict, doc_terms_list,doc_uni_token,doc_uni_pos, doc_class_list,
 #                 senti_dict_lst,term_weight, rule_feature=0, idf_term=None):
 def build_samps(term_dict, class_dict, doc_class_list, doc_terms_list, doc_uni_token,
-    term_weight, rule_feature=0):
+    term_weight, rule_feature=0, senti_dict_lst=[], mi_senti_dict = {}):
     samp_dict_list = []
     samp_class_list = []
 
@@ -569,6 +614,7 @@ def build_samps(term_dict, class_dict, doc_class_list, doc_terms_list, doc_uni_t
 
         if rule_feature!=0:
             # 初始化情感分析对象, 该对象使用带有强度标注的情感词典进行分析
+            # pass
             win_size = 4
             phrase_size = 3
             test = Lbsa(win_size,phrase_size)
@@ -576,17 +622,16 @@ def build_samps(term_dict, class_dict, doc_class_list, doc_terms_list, doc_uni_t
             doc_tokens = doc_uni_token[k]
             fixed_id = len(term_dict)+1        #下一个特征开始的ID号
 
-            distant_score,distant_avg_score = test.distant_dict_score(doc_tokens)
-            if distant_score != 0:
-                samp_dict[fixed_id] = distant_score
-            fixed_id += 1
-
-
+            # # distant_score,distant_avg_score = test.mi_dict_score(doc_tokens, mi_senti_dict)
+            # # if distant_score != 0:
+            # #     samp_dict[fixed_id] = distant_score
+            # # fixed_id += 1
 
             rule_result = test.cal_document(doc_tokens,'none')
-            #########               添加规则情感特征                 ###########
-            # 先添加情感词以外的特征，包括：
-            # 否定词数量，程度副词数量，感叹词数量，第一人称词数量，第二人称词数量
+            # rule_result = test.simple_rule_score(doc_tokens)
+            # #########               添加规则情感特征                 ###########
+            # # 先添加情感词以外的特征，包括：
+            # # 否定词数量，程度副词数量，感叹词数量，第一人称词数量，第二人称词数量
             for key in ['deny_ct','degree_ct']:
                 val = rule_result[key]
                 if float(val) !=0:
@@ -595,7 +640,7 @@ def build_samps(term_dict, class_dict, doc_class_list, doc_terms_list, doc_uni_t
 
             yuqici_ct = doc_tokens.count('啊')+doc_tokens.count('啦')+doc_tokens.count('呀')+\
             doc_tokens.count('吧')+doc_tokens.count('哇')+doc_tokens.count('哦')
-            if yuqici_ct>0:
+            if yuqici_ct > 0:
                 samp_dict[fixed_id] = float(yuqici_ct)
             fixed_id += 1
 
@@ -607,39 +652,64 @@ def build_samps(term_dict, class_dict, doc_class_list, doc_terms_list, doc_uni_t
             fixed_id += 1
 
             # 标点符号特征
-            for punc in ['!','?','！','！！！','？','？？？','。。。']:
+            # for punc in ['!','?','！','！！！','？','？？？','。。。']:
+            for punc in ['!','?','！','！！！','？']:
                 punc_ct = doc_tokens.count(punc)
-                if punc_ct>0:
+                if punc_ct > 0:
                     samp_dict[fixed_id] = float(punc_ct)
                 fixed_id += 1
 
             # 添加情感词相关特征
-            for key in ['pos_ct','neg_ct','pos_sub','neg_sub','sub_ct', 'score','face_score','final_score']:
+            for key in ['score','face_score','final_score']:
+                val = rule_result[key]
+                if float(val) !=0:
+                    samp_dict[fixed_id] = float(val)
+                fixed_id += 1
+                if int(val) !=0:
+                    samp_dict[fixed_id] = int(val)
+                fixed_id += 1
+
+
+            for key in ['pos_ct','neg_ct']:
                 val = rule_result[key]
                 if float(val) !=0:
                     samp_dict[fixed_id] = float(val)
                 fixed_id += 1
 
+            for key in ['pos_sub','neg_sub','sub_ct']:
+                val = rule_result[key]
+                if float(val) !=0:
+                    samp_dict[fixed_id] = float(val)
+                fixed_id += 1
+
+
             #正向情感词数量是否多于消极情感词
             fixed_id = trans_feature_weight(rule_result['pos_ct'],rule_result['neg_ct'],fixed_id,samp_dict)
+
             #正向子句数是否多于负向子句数
             fixed_id = trans_feature_weight(rule_result['pos_sub'],rule_result['neg_sub'],fixed_id,samp_dict)
 
+            # score = switch_final_score(rule_result['final_score'] - rule_result['face_score'])
             score = switch_final_score(rule_result['final_score'])
-            face_score = switch_final_score(rule_result['face_score'])
             fixed_id = trans_feature_weight(score,2,fixed_id,samp_dict)
+
+            face_score = switch_final_score(rule_result['face_score'])
             fixed_id = trans_feature_weight(face_score,2,fixed_id,samp_dict)
 
             # for senti_dict in senti_dict_lst:
             #     # pos_word_num, neg_word_num = test.general_lex_method(doc_tokens, senti_dict, 4)
-            #     pos_word_num, neg_word_num = test.character_ngram_method(doc_tokens, senti_dict, 4)
-            #     if pos_word_num>0:
+            #     # pos_word_num, neg_word_num = test.character_ngram_method(doc_tokens, senti_dict, 4)
+            #     pos_word_num, neg_word_num, your_score = test.your_dict_score(doc_tokens, senti_dict)
+            #     # print test.your_dict_score(doc_tokens, senti_dict)
+            #     if pos_word_num > 0:
             #         samp_dict[fixed_id] = pos_word_num
             #     fixed_id += 1
-            #     if neg_word_num>0:
+            #     if neg_word_num > 0:
             #         samp_dict[fixed_id] = neg_word_num
             #     fixed_id += 1
-            #     fixed_id = trans_feature_weight(pos_word_num, neg_word_num,fixed_id,samp_dict)
+            #     # fixed_id = trans_feature_weight(pos_word_num, neg_word_num, fixed_id, samp_dict)
+            #     your_score = switch_final_score(your_score)
+            #     fixed_id = trans_feature_weight(your_score, 2, fixed_id, samp_dict)
         ###########################################################################
         samp_dict_list.append(samp_dict)
     return samp_dict_list, samp_class_list
@@ -659,6 +729,20 @@ def save_samps(samp_dict_list, samp_class_list, fname, feat_num=0):
 
 ########## Learning & Classification Functions Using Machine Learning Tools##########
 
+def ml_learn_classify(classifier_name, train_samp_dir, model_file_dir, test_samp_dir, result_file_dir):
+
+    if classifier_name == 'lg':
+        liblinear_learn(train_samp_dir, model_file_dir)
+        liblinear_predict(test_samp_dir, model_file_dir, result_file_dir)
+    elif classifier_name == 'nb':
+        nb_learn(train_samp_dir, model_file_dir)
+        nb_predict(test_samp_dir, model_file_dir, result_file_dir)
+    elif classifier_name == 'svm':
+        libsvm_learn(train_samp_dir, model_file_dir)
+        libsvm_predict(test_samp_dir, model_file_dir, result_file_dir)
+    else:
+        pass
+
 def liblinear_learn(train_samp_dir, model_file_dir, learn_opt='-s 7 -c 1'):
 
 
@@ -675,7 +759,90 @@ def liblinear_predict(test_samp_dir, model_file_dir, result_file_dir, classify_o
     fname_samp_test = test_samp_dir + os.sep + 'test.samp'
     fname_result = result_file_dir + os.sep + 'lg.result'
 
-    import subprocess
     pop = subprocess.Popen(LIBLINEAR_CLASSIFY_EXE + ' ' + classify_opt + ' ' \
             + fname_samp_test + ' ' + fname_model + ' ' + fname_result)
     pop.wait()
+
+def nb_learn(train_samp_dir, model_file_dir, learn_opt='-e 1'):
+    fname_samp_train = train_samp_dir + os.sep + 'train.samp'
+    fname_model = model_file_dir + os.sep + 'nb.model'
+
+    pop = subprocess.Popen(NB_LEARN_EXE + ' ' +  learn_opt + ' ' + \
+        fname_samp_train + ' ' + fname_model)
+    pop.wait()
+
+def nb_predict(test_samp_dir, model_file_dir, result_file_dir, classify_opt='-f 2'):
+    fname_model =model_file_dir + os.sep + 'nb.model'
+    fname_samp_test = test_samp_dir + os.sep + 'test.samp'
+    fname_result = result_file_dir + os.sep + 'nb.result'
+
+    pop = subprocess.Popen(NB_CLASSIFY_EXE + ' ' + classify_opt + ' ' + \
+        fname_samp_test + ' ' + fname_model + ' ' + fname_result)
+    pop.wait()
+
+def libsvm_learn(train_samp_dir, model_file_dir, learn_opt='-t 0 -c 1 -b 1'):
+    fname_samp_train = train_samp_dir + os.sep + 'train.samp'
+    fname_model = model_file_dir + os.sep + 'svm.model'
+
+    pop = subprocess.Popen(LIBSVM_LEARN_EXE + ' ' +  learn_opt + ' ' + \
+        fname_samp_train + ' ' + fname_model)
+    pop.wait()
+
+def libsvm_predict(test_samp_dir, model_file_dir, result_file_dir, classify_opt='-b 1'):
+    fname_model =model_file_dir + os.sep + 'svm.model'
+    fname_samp_test = test_samp_dir + os.sep + 'test.samp'
+    fname_result = result_file_dir + os.sep + 'svm.result'
+
+    pop = subprocess.Popen(LIBSVM_CLASSIFY_EXE + ' ' + classify_opt + ' ' + \
+        fname_samp_test + ' ' + fname_model + ' ' + fname_result)
+    pop.wait()
+
+
+def mix_model(output_dir, classifier_list):
+    import numpy as np
+    prob_mat_lst = []
+    for classifier in classifier_list:
+        f_output = open(output_dir + os.sep + classifier + '.result')
+        output = f_output.readlines()
+        f_output.close()
+        start = 0
+        if classifier == 'lg' or classifier == 'svm':
+            start += 1
+        prob_mat = []
+        for i in range(start, len(output)):
+            tmp = output[i].strip().split()[1:]
+            prob_mat.append([float(tmp[j]) for j in range(len(tmp))])
+        prob_mat = np.asarray(prob_mat)
+        prob_mat_lst.append(prob_mat)
+
+    #初始化一个0概率矩阵，并叠加所有分类器的概率，求平均值
+    mix_prob_mat = np.asarray(np.zeros(prob_mat_lst[0].shape))
+    for prob_mat in prob_mat_lst:
+        print prob_mat.shape, mix_prob_mat.shape
+        mix_prob_mat = mix_prob_mat + prob_mat
+    mix_prob_mat =  mix_prob_mat / len(prob_mat_lst)  #求平均概率
+
+    #筛选出每行最大概率的index，即为最终predict index
+    max_prob_label = np.argmax(mix_prob_mat, 1)  #选出融合概率矩阵中每行最大的
+
+    #将融合结果标签和相应概率写入文件
+    f_mixed = open(output_dir + os.sep + 'mixed.result','w')
+    for i in range(len(max_prob_label)):
+        l = str(max_prob_label[i] + 1)
+        ss = ''
+        for k in range(len(mix_prob_mat[0])):
+            ss += str(round(mix_prob_mat[i][k], 6)) + ' '
+        f_mixed.write(l + '\t' + ss.rstrip())
+        if i!=len(max_prob_label) - 1:
+            f_mixed.write('\n')
+    f_mixed.close()
+    # pred_list_mix = [str(max_prob_label[i] + 1) for i in range(len(max_prob_label))]
+    # return pred_list_mix
+
+# def mix_model(self, test_dir, model_file_dir, mix_classifier_list):
+#     pred_list_mix = pytc.mix_classifier(output_dir,mix_classifier_list)
+#     class_list_test = [x.strip() for x in open(test_dir + os.sep + 'test_label').readlines()]
+#     print len(pred_list_mix),len(class_list_test)
+#     # mix_acc = pytc.calc_acc(pred_list_mix, class_list_test)
+#     # print "mix_acc:",mix_acc
+#     return mix_acc

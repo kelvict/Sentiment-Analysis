@@ -18,6 +18,11 @@ def load_lexicon(fname, convert_func):
         word_dict[l[0]] = convert_func(l[1])
     return word_dict
 
+def store_lexicon(tar_dict, fname):
+    '''加载文件为字典数据类型'''
+    with open(fname, 'w') as xs:
+        for key, val in tar_dict.iteritems():
+            xs.write(str(key) +'\t' + str(val) + '\n')
 
 def store_rule_result(result_dict_lst,info_names,output_dir):
     '''存储规则算法结果'''
@@ -77,6 +82,19 @@ def classify(score_fname,res_fname,pos_num,neg_num):
             res_list.append('1')
         else:
             res_list.append('2')
+    f = open(res_fname,'w')
+    f.writelines([x+'\n' for x in res_list])
+    f.close()
+
+def classify_2_way(score_fname, res_fname,threold):
+    '''按照给出的正负向阈值进行分类，并且将分类结果存储'''
+    score_list = [float(x.strip()) for x in open(score_fname).readlines()]
+    res_list = []
+    for i in range(len(score_list)):
+        if score_list[i] > threold:
+            res_list.append('2')
+        else:
+            res_list.append('1')
     f = open(res_fname,'w')
     f.writelines([x+'\n' for x in res_list])
     f.close()

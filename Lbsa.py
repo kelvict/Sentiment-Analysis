@@ -50,6 +50,37 @@ class Lbsa(object):
         avg_score = score/len(doc)
         return score, avg_score
 
+    def your_dict_score(self, doc, your_senti_dict):
+        if len(doc) == 0:
+            return 0, 0, 0
+        pos_ct, neg_ct, score = 0, 0, 0
+        # print type(doc)
+        for term in doc:
+            if term in your_senti_dict:
+                score += your_senti_dict[term]
+                if your_senti_dict[term] > 0:
+                    pos_ct += 1
+                elif your_senti_dict[term] < 0:
+                    neg_ct += 1
+                else:
+                    pass
+        return pos_ct, neg_ct, score
+
+    def simple_rule_score(self, doc):
+        res_dict = {'final_score' : 0}
+        if len(doc) == 0:
+            return res_dict
+        score = 0
+        for term in doc:
+            if term in self.senti_dict:
+                score += self.senti_dict[term]
+
+        face_score = self.cal_face(doc)['face_score']
+
+        # res_dict['final_score'] = score + face_score
+        res_dict['final_score'] = score
+        return res_dict
+
 
     def character_ngram_method(self, doc_tokens, senti_dict, deny_win_size):
         ''' 一个基于字符ngrams的情感词检测方法 '''
@@ -100,18 +131,21 @@ class Lbsa(object):
                 score_detail = ''
                 break
             elif sub_s[i] in Lbsa.senti_dict:   #如果出现情感词
+                neg_flag = 0
                 tmp = float(Lbsa.senti_dict[sub_s[i]]) # 记录情感词得分
                 tmp_detail = sub_s[i]+'; '
                 pre_index = max(0,i-win_size)          # 设定窗口，向前搜索否定词
+
                 for j in range(i-1,pre_index,-1):
                     if sub_s[j] in Lbsa.deny_list:
                         tmp *= -1
                         deny_ct += 1
-                        tmp_detail = sub_s[j]+tmp_detail
+                        tmp_detail = sub_s[j] + tmp_detail
+                        neg_flag = 1
                     elif sub_s[j] in Lbsa.degree_dict:
                         tmp *= float(Lbsa.degree_dict[sub_s[j]])
                         degree_ct += 1
-                        tmp_detail = sub_s[j]+tmp_detail
+                        tmp_detail = sub_s[j] + tmp_detail
                     else:
                         pass
                 if tmp>0:
@@ -120,6 +154,10 @@ class Lbsa(object):
                     neg_ct += 1
                 score += tmp
                 score_detail += tmp_detail
+                # if neg_flag == 1:
+                #     sss = ' '.join(sub_s)
+                #     print "#", sss.decode('utf8').encode('gbk','ignore')
+                #     print tmp_detail.decode('utf8').encode('gbk','ignore')
 
             #如果出现情感短语前置动词
             elif sub_s[i] in Lbsa.pre_verb_dict:
@@ -129,6 +167,11 @@ class Lbsa(object):
                 pos_ct += tmp_res['pos_ct']
                 neg_ct += tmp_res['neg_ct']
                 score_detail += tmp_res['tmp_detail']
+
+                # if tmp_res['tmp_detail'] != '':
+                #     sss = ' '.join(sub_s)
+                #     print "#", sss.decode('utf8').encode('gbk','ignore')
+                #     print tmp_res['tmp_detail'].decode('utf8').encode('gbk','ignore')
 
             #如果出现情感短语前置副词
 #            elif sub_s[i] in Lbsa.pre_adv_list:
@@ -192,7 +235,7 @@ class Lbsa(object):
 
         return {'tmp':tmp,'end':end,'pos_ct':pos_ct,'neg_ct':neg_ct,'tmp_detail':tmp_detail}
 
-    def cal_face(self,doc):
+    def cal_face(self, doc):
         '''计算一篇文档中的表情得分'''
         face_score = 0
         face_detail = ''
@@ -210,7 +253,7 @@ class Lbsa(object):
             face_score = face_score/(pos_face_ct+neg_face_ct)
         # if face_score!=0:
         #     print face_detail,face_score
-        return {'face_score':face_score,'pos_face_ct':pos_face_ct,'neg_face_ct':neg_face_ct}
+        return {'face_score':face_score, 'pos_face_ct':pos_face_ct, 'neg_face_ct':neg_face_ct}
 
 
     def cal_sentence(self,sentence):

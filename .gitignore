@@ -1,0 +1,5 @@
+*.pyc
+data_boson/*
+data_nlpir/*
+nlpcc_2016/*
+nlpcc_emotion/*

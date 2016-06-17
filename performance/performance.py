@@ -103,17 +103,20 @@ def demo_performance(result,label,class_dict):
         data['f1_'+c] = fscore[c]
     return data
 
-def demo_cv_performance(output_dir,fold_num,class_dict):
+def demo_cv_performance(output_dir, fold_num, class_dict, classifier_name):
     '''计算n折交叉验证下的平均指标'''
     lst = []
-    for fold_id in range(1,fold_num+1):
+    for fold_id in range(1,fold_num + 1):
         fold_data = {}
         # label_fname = output_dir+os.sep+'fold'+str(fold_id)+os.sep+'test'+os.sep+'test.samp'
         label_fname = output_dir+os.sep+'fold'+str(fold_id)+os.sep+'test'+os.sep+'test_label'
-        result_fname = output_dir+os.sep+'fold'+str(fold_id)+os.sep+'test'+os.sep+'lg.result'
-        # label = [x.split()[0] for x in open(label_fname).readlines()]
+        result_fname = output_dir+os.sep+'fold'+str(fold_id)+os.sep+'test'+os.sep+classifier_name+'.result'
+        start = 0
+        if classifier_name == 'lg' or classifier_name == 'svm':
+            start += 1
         label = [x.strip() for x in open(label_fname).readlines()]
-        result = [x.split()[0] for x in open(result_fname).readlines()[1:]]
+        result = [x.split()[0] for x in open(result_fname).readlines()[start:]]
+
         fold_data['acc'] = calc_acc(result,label)
         fold_data['recall'] = calc_recall(result,label,class_dict)
         fold_data['precision'] = calc_precision(result,label,class_dict)
